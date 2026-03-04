@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  phone        String?
+  image        String?
+  passwordHash String?
+  createdAt    DateTime  @default(now())
+
+  subscription Subscription?
+  follows      UserTraderFollow[]
+  alerts       AlertPreference?
+  accounts     Account[]
+  sessions     Session[]
+  tradeAlerts  TradeAlert[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  stripeCustomerId     String   @unique
+  stripeSubscriptionId String   @unique
+  stripePriceId        String
+  tier                 Tier
+  status               String
+  currentPeriodEnd     DateTime
+  createdAt            DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum Tier {
+  BASIC
+  PRO
+}
+
+model Trader {
+  id        String         @id @default(cuid())
+  name      String
+  slug      String         @unique
+  image     String?
+  category  TraderCategory
+  bio       String?
+  role      String?
+  party     String?
+  createdAt DateTime       @default(now())
+
+  trades    Trade[]
+  followers UserTraderFollow[]
+}
+
+enum TraderCategory {
+  CONGRESS
+  INSTITUTIONAL
+  INSIDER
+}
+
+model Trade {
+  id          String     @id @default(cuid())
+  traderId    String
+  ticker      String
+  companyName String?
+  tradeType   TradeType
+  amountMin   Float?
+  amountMax   Float?
+  tradeDate   DateTime
+  filingDate  DateTime
+  filingUrl   String?    @unique
+  source      DataSource
+  rawData     Json?
+  createdAt   DateTime   @default(now())
+
+  trader Trader       @relation(fields: [traderId], references: [id])
+  alerts TradeAlert[]
+}
+
+enum TradeType {
+  BUY
+  SELL
+  OPTION
+  EXCHANGE
+}
+
+enum DataSource {
+  FORM4
+  FORM13F
+  HOUSE
+  SENATE
+}
+
+model UserTraderFollow {
+  id        String   @id @default(cuid())
+  userId    String
+  traderId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  trader Trader @relation(fields: [traderId], references: [id])
+
+  @@unique([userId, traderId])
+}
+
+model AlertPreference {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  smsEnabled   Boolean @default(false)
+  emailEnabled Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model TradeAlert {
+  id      String   @id @default(cuid())
+  tradeId String
+  userId  String
+  sentAt  DateTime @default(now())
+  channel String
+
+  trade Trade @relation(fields: [tradeId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([tradeId, userId, channel])
+}
