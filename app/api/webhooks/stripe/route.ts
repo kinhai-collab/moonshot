@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { stripe } from '@/lib/stripe'
+import { getStripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
 import type { Tier } from '@prisma/client'
 
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(body, sig, secret)
+    event = getStripe().webhooks.constructEvent(body, sig, secret)
   } catch (err) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       const userId = session.metadata?.userId
       if (!userId) break
 
-      const sub = await stripe.subscriptions.retrieve(session.subscription as string) as any
+      const sub = await getStripe().subscriptions.retrieve(session.subscription as string) as any
       const priceId: string = sub.items.data[0]?.price.id
       const tier: Tier = PRICE_TO_TIER[priceId] ?? 'BASIC'
 
